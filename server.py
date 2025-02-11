@@ -14,6 +14,8 @@ def agent_portrayal(agent):
             color = "red"
         elif agent.status == "burnt":
             color = "black"
+        elif agent.status == "suppressed":
+            color = "brown"
         elif agent.status == "extinguished":
             color = "brown"
         return {"Shape": "rect", "Filled": "true", "Color": color, "Layer": 0, "w": 1, "h": 1}
@@ -29,6 +31,8 @@ tree_stats = ChartModule([
                 data_collector_name="datacollector"
             )
 
+attack_strategy = Choice("Select firetrucks attack strategy", value="Base",
+                               choices=["Base", "Direct Attack", "Parallel Attack"])
 density_slider = Slider("Tree density", 0.8, 0.1, 1.0, 0.05)
 extinguish_steps_slider = Slider("Number of steps needed to extinguish fire", 1, 1, 5, 1)
 number_firetrucks_slider = Slider("Number of firetrucks to spawn", 30, 0, 100, 1)
@@ -40,6 +44,7 @@ wind_speed_slider = Slider("Wind speed", 60, 0, 200, 2)
 
 # Define the parameters of the model
 parameters = {
+    "attack_strategy": attack_strategy,
     "width": 60,
     "height": 60,
     "num_firetrucks": number_firetrucks_slider,

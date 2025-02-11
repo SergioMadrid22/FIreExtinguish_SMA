@@ -55,7 +55,7 @@ class Tree(Agent):
             self.status = "burnt"
         else:
             for neighbor in self.model.grid.get_neighbors(self.pos, moore=True, radius=1):
-                if isinstance(neighbor, Tree) and (neighbor.status == "healthy" or neighbor.status == "extinguished"):
+                if isinstance(neighbor, Tree) and (neighbor.status == "healthy"): #or neighbor.status == "extinguished"):
                     # Calculate the spread angle from self.pos to neighbor.pos
                     delta_y = self.pos[1] - neighbor.pos[1]
                     delta_x = neighbor.pos[0] - self.pos[0]
