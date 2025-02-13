@@ -1,9 +1,11 @@
 from mesa import Agent
-from tree import Tree
+from tree import Tree, compute_rate_of_spread
 import math
+import numpy as np
+import random
 
 class Firetruck(Agent):
-    def __init__(self, unique_id, model, speed, strategy="base", production_rate=1.0, safe_distance=2):
+    def __init__(self, unique_id, model, speed, strategy="base", production_rate=1.0, safe_distance=20):
         """
         Parámetros:
           - speed: cuántas celdas se pueden mover por step.
@@ -41,7 +43,7 @@ class Firetruck(Agent):
     def calculate_next_pos(self, target_pos):
         """
         Calcula la posición a la que se moverá el firetruck hacia el objetivo,
-        similar a tu método move_towards pero sin mover todavía al agente.
+        similar a move_towards pero sin mover todavía al agente.
         """
         current_x, current_y = self.pos
         target_x, target_y = target_pos
@@ -249,7 +251,7 @@ class Firetruck(Agent):
         T_lookahead = math.sqrt(2) * cell_size / self.production_rate
         # Se define el radio de la subárea como el número de celdas que equivale a safe_distance
         distance_bound = int(math.ceil(safe_distance / cell_size))
-        
+        print(distance_bound)
         local_grid = self.get_local_grid(radius=distance_bound)
         predicted_grid = self.simulate_fire(local_grid, T_lookahead)
         

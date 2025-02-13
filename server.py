@@ -23,6 +23,7 @@ def agent_portrayal(agent):
     elif isinstance(agent, Firetruck):
         return {"Shape": "rect", "Filled": "true", "Color": "blue", "Layer": 1, "w": 1, "h": 1}
 
+
 grid = CanvasGrid(agent_portrayal, 60, 60, 500, 500)
 tree_stats = ChartModule([
                 {"Label": "Healthy", "Color": "Green"},
@@ -30,15 +31,18 @@ tree_stats = ChartModule([
                 {"Label": "Burnt", "Color": "Black"}],
                 data_collector_name="datacollector"
             )
+extinguished_stats = ChartModule([
+                {"Label": "Extinguished", "Color": "Brown"}],
+                data_collector_name="datacollector")
 
 attack_strategy = Choice("Select firetrucks attack strategy", value="Base",
-                               choices=["Base", "Direct Attack", "Parallel Attack"])
+                            choices=["Base", "Direct Attack", "Parallel Attack"])
 density_slider = Slider("Tree density", 0.8, 0.1, 1.0, 0.05)
 extinguish_steps_slider = Slider("Number of steps needed to extinguish fire", 1, 1, 5, 1)
 number_firetrucks_slider = Slider("Number of firetrucks to spawn", 30, 0, 100, 1)
 truck_speed_slider = Slider("Speed of the firetrucks", 3, 1, 15, 1)
 wind_direction_choice = Choice("Select wind direction", value="North",
-                               choices=["North", "South", "East", "West",
+                            choices=["North", "South", "East", "West",
                                         "North-East", "North-West", "South-East", "South-West"])
 wind_speed_slider = Slider("Wind speed", 60, 0, 200, 2)
 
@@ -56,5 +60,5 @@ parameters = {
 }
 
 # Start server execution 
-server = ModularServer(FireModel, [grid, tree_stats], "Firefighting Simulation", parameters)
+server = ModularServer(FireModel, [grid, tree_stats, extinguished_stats], "Firefighting Simulation", parameters)
 server.port = 8521

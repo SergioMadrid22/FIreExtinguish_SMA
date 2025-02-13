@@ -5,6 +5,7 @@ from mesa.datacollection import DataCollector
 from tree import Tree
 from firetruck import Firetruck
 import random
+import numpy as np
 
 attack_strategies= {
     "Base": "base",
@@ -30,7 +31,7 @@ class FireModel(Model):
                  tree_density, extinguish_steps,
                  wind_direction, wind_speed,
                  attack_strategy = "base",
-                 cell_size=1,
+                 cell_size=1, random_seed =42,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.grid = MultiGrid(width, height, torus=False)
@@ -44,7 +45,9 @@ class FireModel(Model):
         self.tree_density = tree_density
         self.extinguish_steps = extinguish_steps
         self.wind_direction = wind_directions[wind_direction]
-
+        self.random_seed = random_seed
+        random.seed(self.random_seed)
+        np.random.seed(self.random_seed)
 
         # Set up the parameters of the fuel
         fuel_params = {
@@ -96,6 +99,7 @@ class FireModel(Model):
             "Healthy": self.count_healthy_trees,
             "Burning": self.count_burning_trees,
             "Burnt": self.count_burnt_trees,
+            "Extinguished": self.count_extinguished_trees
         })
         self.datacollector.collect(self)
 
@@ -149,4 +153,5 @@ class FireModel(Model):
     def count_burnt_trees(self):
         return sum(1 for a in self.schedule.agents if isinstance(a, Tree) and a.status == "burnt")
 
-
+    def count_extinguished_trees(self):
+        return sum(1 for a in self.schedule.agents if isinstance(a, Tree) and (a.status == "extinguished" or a.status == "supressed"))
