@@ -114,7 +114,8 @@ class FireModel(Model):
             "Healthy": self.count_healthy_trees,
             "Burning": self.count_burning_trees,
             "Burnt": self.count_burnt_trees,
-            "Extinguished": self.count_extinguished_trees
+            "Extinguished": self.count_extinguished_trees,
+            "Good": self.count_good_trees
         })
         self.datacollector.collect(self)
 
@@ -157,7 +158,8 @@ class FireModel(Model):
         agents = self.grid.get_cell_list_contents(pos)
         for agent in agents:
             if isinstance(agent, Tree):
-                agent.status = "suppressed"
+                if agent.status == "healthy":
+                    agent.status = "suppressed"
 
     def count_healthy_trees(self):
         return sum(1 for a in self.schedule.agents if isinstance(a, Tree) and a.status == "healthy")
@@ -169,4 +171,7 @@ class FireModel(Model):
         return sum(1 for a in self.schedule.agents if isinstance(a, Tree) and a.status == "burnt")
 
     def count_extinguished_trees(self):
-        return sum(1 for a in self.schedule.agents if isinstance(a, Tree) and (a.status == "extinguished" or a.status == "supressed"))
+        return sum(1 for a in self.schedule.agents if isinstance(a, Tree) and (a.status == "extinguished" or a.status == "suppressed"))
+    
+    def count_good_trees(self):
+        return sum(1 for a in self.schedule.agents if isinstance(a, Tree) and (a.status == "extinguished" or a.status == "healthy"))

@@ -5,7 +5,7 @@ import numpy as np
 import random
 
 class Firetruck(Agent):
-    def __init__(self, unique_id, model, speed, strategy="base", production_rate=1.0, safe_distance=2):
+    def __init__(self, unique_id, model, speed, strategy="base", production_rate=1.0, safe_distance=3):
         """
         Parámetros:
           - speed: cuántas celdas se pueden mover por step.
