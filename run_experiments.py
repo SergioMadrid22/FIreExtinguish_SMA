@@ -41,13 +41,16 @@ def run_batch_experiment():
 
     return results
 
-# Plot the results for different attack strategies
-def plot_batch_results(experiment_results):
-    # Convert results to a DataFrame
-    results_df = pd.DataFrame(experiment_results)
-    plot_data_ext = results_df[['Step', 'attack_strategy', 'Extinguished']]
+# ---------------------------
+# Plot for Trees Extinguished
+# ---------------------------
+def plot_extinguished(results_df):
+    # Ensure a RunId column exists
+    if "RunId" not in results_df.columns:
+        results_df["RunId"] = 1
 
-    # Plot extinguished or suppressed cells
+    # Extract data for extinguished trees
+    plot_data_ext = results_df[['RunId', 'Step', 'attack_strategy', 'Extinguished']]
     plt.figure(figsize=(10, 6))
     
     # Create a color mapping for each attack strategy
