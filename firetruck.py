@@ -5,7 +5,7 @@ import numpy as np
 import random
 
 class Firetruck(Agent):
-    def __init__(self, unique_id, model, speed, strategy="base", production_rate=1.0, safe_distance=20):
+    def __init__(self, unique_id, model, speed, strategy="base", production_rate=1.0, safe_distance=2):
         """
         Parámetros:
           - speed: cuántas celdas se pueden mover por step.
@@ -18,6 +18,7 @@ class Firetruck(Agent):
         self.strategy = strategy
         self.production_rate = production_rate
         self.safe_distance = safe_distance
+        self.previous_pos = self.pos
 
     def get_closest_burning_tree(self):
         """
@@ -63,6 +64,59 @@ class Firetruck(Agent):
         new_y = current_y + step_y
 
         return (new_x, new_y)
+    
+    def calculate_base_direction(self):
+        """
+        Calcula la dirección base (como un índice 0-7) a partir de la posición previa
+        y la posición actual. Se utiliza para orientar el proceso de “scan” en la estrategia
+        predict-and-scan.
+        
+        La dirección se determina normalizando la diferencia entre la posición actual y la anterior:
+          - (0, -1): Norte      -> índice 0
+          - (1, -1): Noreste    -> índice 1
+          - (1,  0): Este       -> índice 2
+          - (1,  1): Sureste    -> índice 3
+          - (0,  1): Sur        -> índice 4
+          - (-1, 1): Suroeste   -> índice 5
+          - (-1, 0): Oeste      -> índice 6
+          - (-1,-1): Noroeste   -> índice 7
+        
+        Retorna el índice correspondiente o None si no se pudo determinar.
+        """
+
+        if self.previous_pos is None:
+            return 0
+        
+        current_x, current_y = self.pos
+        prev_x, prev_y = self.previous_pos
+        
+        dx = current_x - prev_x
+        dy = current_y - prev_y
+
+        # Normalize the movement to -1, 0, or 1
+        dx_norm = 0 if dx == 0 else (1 if dx > 0 else -1)
+        dy_norm = 0 if dy == 0 else (1 if dy > 0 else -1)
+        
+        direction_map = {
+            (0, -1): 0,   # North
+            (1, -1): 1,   # NE
+            (1, 0): 2,    # East
+            (1, 1): 3,    # SE
+            (0, 1): 4,    # South
+            (-1, 1): 5,   # SW
+            (-1, 0): 6,   # West
+            (-1, -1): 7   # NW
+        }
+        base_direction = direction_map.get((dx_norm, dy_norm), None)
+        return base_direction
+
+    def update_position(self, new_pos):
+        """
+        Moves the firetruck to a new position while updating the previous position.
+        """
+        self.previous_pos = self.pos
+        self.model.grid.move_agent(self, new_pos)
+        self.pos = new_pos
 
     #################################
     # Funciones para ataque directo #
@@ -121,7 +175,6 @@ class Firetruck(Agent):
                             # Se utiliza la misma fórmula que en el método burn de Tree
                             # Notar que: spread_angle = arctan2( (y - (y+dy)), ((x+dx) - x) )
                             spread_angle = np.arctan2(-dy, dx)
-                            #print("SPREAD ANGLE", spread_angle)
                             # Obtener los parámetros de combustible por defecto del modelo
                             fuel_params = self.model.default_fuel_params
                             ros = compute_rate_of_spread(
@@ -146,56 +199,94 @@ class Firetruck(Agent):
             simulated_grid = new_grid
         return simulated_grid
 
-    def scan_fireline(self, current_pos, predicted_grid, stage):
+    def scan_fireline(self, current_pos, predicted_grid, stage, base_direction):
         """
-        Aplica el proceso de “scan” para buscar, a partir de la posición actual,
-        la primera celda en estado "burning" siguiendo un recorrido circular.
+        Applies the “scan” process to look for the first 'burning' cell,
+        starting from 'base_direction' and moving in a circular order.
         
-        Parámetros:
-          - stage: "non_diagonal" rechaza celdas diagonales; "diagonal" las acepta.
+        :param base_direction: An integer or (dx, dy) that indicates 
+                            where to start scanning.
         """
-        # Orden de direcciones: norte, noreste, este, sureste, sur, suroeste, oeste, noroeste.
-        directions = [(0, -1), (1, -1), (1, 0), (1, 1),
-                      (0, 1), (-1, 1), (-1, 0), (-1, -1)]
+        # All 8 directions in a fixed order (e.g., clockwise)
+        directions = [
+            (0, -1),   # North
+            (1, -1),   # NE
+            (1, 0),    # East
+            (1, 1),    # SE
+            (0, 1),    # South
+            (-1, 1),   # SW
+            (-1, 0),   # West
+            (-1, -1)   # NW
+        ]
+        
+        # Rotate directions so that base_direction is first
+        directions = self.rotate_directions(directions, base_direction)
+        
         for dx, dy in directions:
             candidate = (current_pos[0] + dx, current_pos[1] + dy)
             if candidate in predicted_grid and predicted_grid[candidate] == "burning":
+                # If we are in non-diagonal stage and this is diagonal, abort
                 if stage == "non_diagonal" and abs(dx) == 1 and abs(dy) == 1:
-                    # En la etapa 1 se aborta si la celda es diagonal.
                     return None
                 return candidate
         return None
 
+    def rotate_directions(self, directions, base_direction):
+        """
+        Rota la lista de direcciones para que el índice base_direction sea el primero,
+        y continúa en orden circular.
+        """
+        # Si base_direction es None, usamos 0 (Norte) por defecto.
+        if base_direction is None:
+            base_direction = 0
+        return directions[base_direction:] + directions[:base_direction]
+
     def direct_attack_strategy(self):
         """
         Implementa la estrategia de ataque directo mediante el esquema
-        “predict-and-scan” de dos etapas.
+        “predict-and-scan” de dos etapas, usando pasos de tiempo discretos.
         """
         cell_size = self.model.cell_size
 
+        # Calcular la base direction a partir del movimiento previo.
+        base_direction = self.calculate_base_direction()
+        if base_direction is None:
+            base_direction = 0  # Por defecto, comienza desde el Norte.
+
+        # -------------------------------------------------------
         # ETAPA 1: vecinos no diagonales
-        T_lookahead = cell_size / self.production_rate
-        local_grid = self.get_local_grid(radius=2)
-        predicted_grid = self.simulate_fire(local_grid, T_lookahead)
-        destination = self.scan_fireline(self.pos, predicted_grid, stage="non_diagonal")
-        #print("PRIMERA ETAPA")
-        # Si la celda obtenida es diagonal (o no se encontró), se pasa a la ETAPA 2.
+        # -------------------------------------------------------
+        T_float_non_diag = cell_size / self.production_rate
+        T_lookahead_non_diag = math.ceil(T_float_non_diag)
+
+        local_grid = self.get_local_grid(radius=20)
+        predicted_grid = self.simulate_fire(local_grid, T_lookahead_non_diag)
+
+        destination = self.scan_fireline(self.pos, predicted_grid, stage="non_diagonal", base_direction=base_direction)
+
+        # -------------------------------------------------------
+        # ETAPA 2: si no se encontró o era diagonal
+        # -------------------------------------------------------
         if destination is None:
-            T_lookahead = math.sqrt(2) * cell_size / self.production_rate
-            predicted_grid = self.simulate_fire(local_grid, T_lookahead)
-            destination = self.scan_fireline(self.pos, predicted_grid, stage="diagonal")
-            #print("SEGUNDA ETAPA")
+            T_float_diag = math.sqrt(2) * cell_size / self.production_rate
+            T_lookahead_diag = math.ceil(T_float_diag)
+
+            predicted_grid = self.simulate_fire(local_grid, T_lookahead_diag)
+            destination = self.scan_fireline(self.pos, predicted_grid, stage="diagonal", base_direction=base_direction)
+
+        # -------------------------------------------------------
+        # Mover y suprimir (si hay celda destino), o estrategia alternativa
+        # -------------------------------------------------------
         if destination is not None:
-            # Se intenta reservar la celda destino
             if self.model.can_reserve_cell(destination, self):
                 self.model.reserve_cell(destination, self)
-                self.model.grid.move_agent(self, destination)
+                self.update_position(destination)
                 self.model.suppress_cell(destination)
             else:
                 alternative = self.find_alternative(destination)
                 if alternative and self.model.can_reserve_cell(alternative, self):
                     self.model.reserve_cell(alternative, self)
-                    self.model.grid.move_agent(self, alternative)
+                    self.update_position(alternative)
                     self.model.suppress_cell(alternative)
                 else:
                     self.base_strategy()
@@ -209,10 +300,10 @@ class Firetruck(Agent):
 
     def base_strategy(self):
         nearby_agents = self.model.grid.get_neighbors(self.pos, moore=True, include_center=True)
-        burning_trees = [ agent for agent in nearby_agents
+        burning_trees = [agent for agent in nearby_agents
                          if isinstance(agent, Tree) and agent.status == "burning"]
 
-        # Attack the first burning tree found in the neighborhood    
+        # Ataca el primer árbol en llamas encontrado en el vecindario.
         if burning_trees:
             target_tree = burning_trees[0]
             target_tree.extinguish_steps -= 1
@@ -223,17 +314,14 @@ class Firetruck(Agent):
             closest_fire = self.get_closest_burning_tree()
             if closest_fire is not None:
                 desired_pos = self.calculate_next_pos(closest_fire.pos)
-                # Intentar reservar la celda deseada en el modelo.
                 if self.model.can_reserve_cell(desired_pos, self):
                     self.model.reserve_cell(desired_pos, self)
-                    self.model.grid.move_agent(self, desired_pos)
+                    self.update_position(desired_pos)
                 else:
-                    # Si la celda ya está reservada, se puede implementar una estrategia
-                    # alternativa, por ejemplo, buscar una celda adyacente libre.
                     alternative_pos = self.find_alternative(desired_pos)
                     if alternative_pos and self.model.can_reserve_cell(alternative_pos, self):
                         self.model.reserve_cell(alternative_pos, self)
-                        self.model.grid.move_agent(self, alternative_pos)
+                        self.update_position(alternative_pos)
 
     ##################################
     # Funciones para ataque paralelo #
@@ -251,20 +339,30 @@ class Firetruck(Agent):
         T_lookahead = math.sqrt(2) * cell_size / self.production_rate
         # Se define el radio de la subárea como el número de celdas que equivale a safe_distance
         distance_bound = int(math.ceil(safe_distance / cell_size))
-        #print(distance_bound)
-        local_grid = self.get_local_grid(radius=distance_bound)
+        
+        local_grid = self.get_local_grid(radius=20)
         predicted_grid = self.simulate_fire(local_grid, T_lookahead)
         
         tolerance = 0.5  # Tolerancia para considerar "cercano" a safe_distance
         candidate_destination = None
-        # Escanear las celdas vecinas inmediatas (8 direcciones)
+
+        # Calcular la dirección base a partir del movimiento previo.
+        base_direction = self.calculate_base_direction()
+        if base_direction is None:
+            base_direction = 0  # Por defecto, usar Norte
+
+        # Definir las 8 direcciones (ordenadas en sentido horario)
         directions = [(0, -1), (1, -1), (1, 0), (1, 1),
                       (0, 1), (-1, 1), (-1, 0), (-1, -1)]
+        # Rotar las direcciones para que la búsqueda comience en la base_direction
+        directions = self.rotate_directions(directions, base_direction)
+        
+        # Escanear las celdas vecinas inmediatas en el orden rotado
         for dx, dy in directions:
             candidate = (self.pos[0] + dx, self.pos[1] + dy)
             if candidate not in predicted_grid:
                 continue
-            # Calcular D_fire: distancia desde la celda candidata a la celda burning más cercana en predicted_grid
+            # Calcular D_fire: distancia desde la celda candidata a la celda burning más cercana
             d_fire = None
             for pos, state in predicted_grid.items():
                 if state == "burning":
@@ -293,6 +391,11 @@ class Firetruck(Agent):
                     self.base_strategy()
         else:
             self.base_strategy()
+
+
+    ########
+    # Step #
+    ########
 
     def step(self):
         # Según la estrategia asignada al crearse el agente, ejecuta la acción correspondiente.

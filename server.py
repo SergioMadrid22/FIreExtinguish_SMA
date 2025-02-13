@@ -15,13 +15,13 @@ def agent_portrayal(agent):
         elif agent.status == "burnt":
             color = "black"
         elif agent.status == "suppressed":
-            color = "brown"
+            color = "grey"
         elif agent.status == "extinguished":
-            color = "brown"
+            color = "blue"
         return {"Shape": "rect", "Filled": "true", "Color": color, "Layer": 0, "w": 1, "h": 1}
     
     elif isinstance(agent, Firetruck):
-        return {"Shape": "rect", "Filled": "true", "Color": "blue", "Layer": 1, "w": 1, "h": 1}
+        return {"Shape": "rect", "Filled": "true", "Color": "yellow", "Layer": 1, "w": 1, "h": 1}
 
 
 grid = CanvasGrid(agent_portrayal, 60, 60, 500, 500)
