@@ -35,16 +35,13 @@ def run_batch_experiment():
 
     return results
 
-
+# Plot the results for different attack strategies
 def plot_batch_results(experiment_results):
     # Convert results to a DataFrame
     results_df = pd.DataFrame(experiment_results)
-
-    # === 1) Plot for Trees Extinguished ===
-    # Filter relevant columns: 'Step', 'attack_strategy', and 'Extinguished'
     plot_data_ext = results_df[['Step', 'attack_strategy', 'Extinguished']]
 
-    # Create a plot for each attack strategy
+    # Plot extinguished or suppressed cells
     plt.figure(figsize=(10, 6))
     strategies = plot_data_ext['attack_strategy'].unique()
 
@@ -52,15 +49,13 @@ def plot_batch_results(experiment_results):
         strategy_data = plot_data_ext[plot_data_ext['attack_strategy'] == strategy]
         plt.plot(strategy_data['Step'], strategy_data['Extinguished'], label=strategy)
 
-    # Set labels and title
     plt.xlabel('Time (Steps)')
     plt.ylabel('Number of Trees Extinguished')
     plt.title('Trees Extinguished over Time for Different Attack Strategies')
     plt.legend(title="Attack Strategy")
     plt.show()
 
-    # === 2) Plot for Alive Trees ===
-    # Make sure you have "Healthy" recorded in your DataCollector in FireModel
+    # Plot healthy trees
     if 'Healthy' in results_df.columns:
         plot_data_alive = results_df[['Step', 'attack_strategy', 'Healthy']]
 
@@ -69,7 +64,6 @@ def plot_batch_results(experiment_results):
             strategy_data = plot_data_alive[plot_data_alive['attack_strategy'] == strategy]
             plt.plot(strategy_data['Step'], strategy_data['Healthy'], label=strategy)
 
-        # Set labels and title
         plt.xlabel('Time (Steps)')
         plt.ylabel('Number of Alive Trees')
         plt.title('Alive Trees over Time for Different Attack Strategies')

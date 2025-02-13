@@ -6,19 +6,13 @@ import random
 
 class Firetruck(Agent):
     def __init__(self, unique_id, model, speed, strategy="base", production_rate=1.0, safe_distance=2):
-        """
-        Parámetros:
-          - speed: cuántas celdas se pueden mover por step.
-          - strategy: "base" o "direct_attack".
-          - production_rate: velocidad (en metros/segundo) para construir la línea de fuego,
-                              relevante para el ataque directo.
-        """
         super().__init__(unique_id, model)
         self.speed = speed
         self.strategy = strategy
         self.production_rate = production_rate
         self.safe_distance = safe_distance
         self.previous_pos = self.pos
+
 
     def get_closest_burning_tree(self):
         """
@@ -43,8 +37,7 @@ class Firetruck(Agent):
     
     def calculate_next_pos(self, target_pos):
         """
-        Calcula la posición a la que se moverá el firetruck hacia el objetivo,
-        similar a move_towards pero sin mover todavía al agente.
+        Calcula la posición a la que se moverá el firetruck hacia el objetivo
         """
         current_x, current_y = self.pos
         target_x, target_y = target_pos
@@ -155,7 +148,6 @@ class Firetruck(Agent):
           - Los estados "burnt" o "suppressed" no cambian.
         Retorna un diccionario con el estado final de cada celda.
         """
-        dt = 1  # paso de tiempo en segundos
         n_steps = max(1, int(math.ceil(T_lookahead)))
         simulated_grid = local_grid.copy()
         neighbor_offsets = [(-1, -1), (-1, 0), (-1, 1),
@@ -236,7 +228,7 @@ class Firetruck(Agent):
         Rota la lista de direcciones para que el índice base_direction sea el primero,
         y continúa en orden circular.
         """
-        # Si base_direction es None, usamos 0 (Norte) por defecto.
+        # Si base_direction es None, usamos 0 (Norte) por defecto
         if base_direction is None:
             base_direction = 0
         return directions[base_direction:] + directions[:base_direction]
@@ -248,7 +240,7 @@ class Firetruck(Agent):
         """
         cell_size = self.model.cell_size
 
-        # Calcular la base direction a partir del movimiento previo.
+        # Calcular la base direction a partir del movimiento previo
         base_direction = self.calculate_base_direction()
         if base_direction is None:
             base_direction = 0  # Por defecto, comienza desde el Norte.
@@ -274,9 +266,7 @@ class Firetruck(Agent):
             predicted_grid = self.simulate_fire(local_grid, T_lookahead_diag)
             destination = self.scan_fireline(self.pos, predicted_grid, stage="diagonal", base_direction=base_direction)
 
-        # -------------------------------------------------------
-        # Mover y suprimir (si hay celda destino), o estrategia alternativa
-        # -------------------------------------------------------
+        # Mover y suprimir si hay celda destino), si no, estrategia alternativa
         if destination is not None:
             if self.model.can_reserve_cell(destination, self):
                 self.model.reserve_cell(destination, self)
@@ -303,7 +293,7 @@ class Firetruck(Agent):
         burning_trees = [agent for agent in nearby_agents
                          if isinstance(agent, Tree) and agent.status == "burning"]
 
-        # Ataca el primer árbol en llamas encontrado en el vecindario.
+        # Ataca el primer árbol en llamas encontrado en el vecindario
         if burning_trees:
             target_tree = burning_trees[0]
             target_tree.extinguish_steps -= 1
@@ -381,6 +371,7 @@ class Firetruck(Agent):
                 self.model.reserve_cell(candidate_destination, self)
                 self.model.grid.move_agent(self, candidate_destination)
                 self.model.suppress_cell(candidate_destination)
+            # Si no se puede reservar, se busca una alternativa
             else:
                 alternative = self.find_alternative(candidate_destination)
                 if alternative and self.model.can_reserve_cell(alternative, self):
@@ -392,11 +383,23 @@ class Firetruck(Agent):
         else:
             self.base_strategy()
 
-
-    ########
-    # Step #
-    ########
-
+    def find_alternative(self, pos):
+        """
+        Método opcional para buscar una celda alternativa cercana a 'pos'.
+        Aquí podrías implementar la lógica para elegir otra celda
+        (por ejemplo, probando las celdas adyacentes).
+        """
+        x, y = pos
+        # Probar celdas adyacentes en 4 direcciones.
+        alternativas = [(x+1, y), (x-1, y), (x, y+1), (x, y-1)]
+        # Filtra las que estén dentro de los límites del grid
+        alternativas = [p for p in alternativas if self.model.grid.out_of_bounds(p) is False]
+        # Retorna la primera que se encuentre libre (esta lógica se puede mejorar)
+        for alt in alternativas:
+            if self.model.can_reserve_cell(alt, self):
+                return alt
+        return None
+    
     def step(self):
         # Según la estrategia asignada al crearse el agente, ejecuta la acción correspondiente.
         if self.strategy == "base":
@@ -408,20 +411,3 @@ class Firetruck(Agent):
         else:
             # Por defecto, se utiliza la estrategia base.
             self.base_strategy()
-
-    def find_alternative(self, pos):
-        """
-        Método opcional para buscar una celda alternativa cercana a 'pos'.
-        Aquí podrías implementar la lógica para elegir otra celda
-        (por ejemplo, probando las celdas adyacentes).
-        """
-        x, y = pos
-        # Ejemplo: probar celdas adyacentes en 4 direcciones.
-        alternativas = [(x+1, y), (x-1, y), (x, y+1), (x, y-1)]
-        # Filtra las que estén dentro de los límites del grid
-        alternativas = [p for p in alternativas if self.model.grid.out_of_bounds(p) is False]
-        # Retorna la primera que se encuentre libre (esta lógica se puede mejorar)
-        for alt in alternativas:
-            if self.model.can_reserve_cell(alt, self):
-                return alt
-        return None

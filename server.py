@@ -24,6 +24,7 @@ def agent_portrayal(agent):
         return {"Shape": "rect", "Filled": "true", "Color": "yellow", "Layer": 1, "w": 1, "h": 1}
 
 
+# Elements of the GUI for the visualization of the simulation
 grid = CanvasGrid(agent_portrayal, 60, 60, 500, 500)
 tree_stats = ChartModule(series=[
                 {"Label": "Healthy", "Color": "Green"},

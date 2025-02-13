@@ -47,7 +47,6 @@ class Tree(Agent):
         self.extinguish_steps = tree_params["extinguish_steps"]
         self.fuel_params = fuel_params
         self.burning_cooldown = tree_params.get("burning_cooldown", 0)
-        # Initialize the cooldown counter to 0 (ready to spread fire immediately once burning)
         self.cooldown_counter = 1
 
     def step(self):
@@ -74,14 +73,13 @@ class Tree(Agent):
                 delta_x = neighbor.pos[0] - self.pos[0]
                 spread_angle = np.arctan2(delta_y, delta_x)
                 
-                # Compute the rate of spread using the Rothermel model.
+                # Compute the rate of spread using the Rothermel model
                 ros = compute_rate_of_spread(
                     spread_angle=spread_angle,
                     **self.fuel_params,
                 )
-                # Use a normalized probability to ignite the neighbor.
+                # Use a normalized probability to ignite the neighbor
                 if random.random() < min(ros / 10, 1):
                     neighbor.status = "burning"
         
-        # After spreading fire, reset the cooldown counter.
         self.cooldown_counter = self.burning_cooldown

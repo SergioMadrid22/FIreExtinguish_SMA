@@ -72,6 +72,7 @@ class FireModel(Model):
             "U_dir": self.wind_direction, "slope_mag": 0.1, "slope_dir": 0
         }
 
+        # Set up the parameters of the fuel
         tree_params = {
             "extinguish_steps": extinguish_steps
         }
@@ -127,37 +128,32 @@ class FireModel(Model):
             self.running = False
         self.schedule.step()
     
+    # Verifica si la celda 'pos' está libre para reservar
     def can_reserve_cell(self, pos, agent):
-        """
-        Verifica si la celda 'pos' está libre para reservar.
-        Opcionalmente, se puede implementar un sistema de prioridades.
-        """
         return pos not in self.cell_reservations
 
+    # Reserva la celda 'pos' para el agente
     def reserve_cell(self, pos, agent):
-        """Reserva la celda 'pos' para el agente."""
         self.cell_reservations[pos] = agent
 
+    # Limpia las reservas al inicio de cada paso 
     def clear_reservations(self):
-        """Limpia las reservas al inicio de cada paso."""
         self.cell_reservations = {}
 
+    # Reserva las celdas ocupadas por los firetrucks antes de calcular movimientos
     def update_cell_reservations(self):
-        """Reserva las celdas ocupadas por los firetrucks antes de calcular movimientos."""
         for agent in self.schedule.agents:
             if isinstance(agent, Firetruck):
                 self.cell_reservations[agent.pos] = agent
     
-    def suppress_cell(self, pos):
-        """
-        Marca la celda como suprimida, por ejemplo actualizando el estado
-        de los árboles que se encuentren allí.
-        """
+    # Marca la celda como suprimida
+    def suppress_cell(self, pos):        
         self.suppressed_cells.add(pos)
         agents = self.grid.get_cell_list_contents(pos)
         for agent in agents:
             if isinstance(agent, Tree):
                 agent.status = "suppressed"
+
 
     def count_healthy_trees(self):
         return sum(1 for a in self.schedule.agents if isinstance(a, Tree) and a.status == "healthy")
