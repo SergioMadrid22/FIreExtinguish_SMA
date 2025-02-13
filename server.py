@@ -25,7 +25,7 @@ def agent_portrayal(agent):
 
 
 grid = CanvasGrid(agent_portrayal, 60, 60, 500, 500)
-tree_stats = ChartModule([
+tree_stats = ChartModule(series=[
                 {"Label": "Healthy", "Color": "Green"},
                 {"Label": "Burning", "Color": "Red"},
                 {"Label": "Burnt", "Color": "Black"}],
@@ -36,8 +36,10 @@ extinguished_stats = ChartModule([
                 data_collector_name="datacollector")
 
 attack_strategy = Choice("Select firetrucks attack strategy", value="Base",
-                            choices=["Base", "Direct Attack", "Parallel Attack"])
+                        choices=["Base", "Direct Attack", "Parallel Attack"])
 density_slider = Slider("Tree density", 0.8, 0.1, 1.0, 0.05)
+fuel_type = Choice("Fuel type", value="Tall grass", 
+                   choices=["Tall grass", "Chaparral", "Litter and understory", "Logging slash"])
 extinguish_steps_slider = Slider("Number of steps needed to extinguish fire", 1, 1, 5, 1)
 number_firetrucks_slider = Slider("Number of firetrucks to spawn", 30, 0, 100, 1)
 truck_speed_slider = Slider("Speed of the firetrucks", 3, 1, 15, 1)
@@ -49,6 +51,7 @@ wind_speed_slider = Slider("Wind speed", 60, 0, 200, 2)
 # Define the parameters of the model
 parameters = {
     "attack_strategy": attack_strategy,
+    "fuel_type": fuel_type,
     "width": 60,
     "height": 60,
     "num_firetrucks": number_firetrucks_slider,

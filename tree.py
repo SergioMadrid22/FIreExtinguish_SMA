@@ -2,7 +2,6 @@ from mesa import Agent
 import random
 import numpy as np
 
-
 # Function for computing the rate of spread of a neighbor using Rothermel fire model
 def compute_rate_of_spread(w_0, delta, M_x, sigma, h, S_T, S_e, p_p, M_f, U, U_dir, slope_mag, slope_dir, spread_angle):
     eta_S = np.minimum(0.174 * S_e**-0.19, 1)
@@ -28,44 +27,61 @@ def compute_rate_of_spread(w_0, delta, M_x, sigma, h, S_T, S_e, p_p, M_f, U, U_d
     wind_along_spread = max(wind_along_spread, 0)
     
     phi_w = c * wind_along_spread**b * (B / B_op) ** -e
-    # If you want to use slope direction, you might similarly project the slope.
-    # For now, we use slope magnitude squared as in your original code:
+    # For slope, we use the squared magnitude as before:
     phi_s = 5.275 * B**-0.3 * slope_mag**2
     epsilon = np.exp(-138 / sigma)
     Q_ig = 250 + 1116 * M_f
     R = ((I_R * xi) * (1 + phi_w + phi_s)) / (p_b * epsilon * Q_ig)
     return max(R, 0)
 
-
 class Tree(Agent):
     def __init__(self, unique_id, model, fuel_params, tree_params):
+        """
+        tree_params should include:
+          - "extinguish_steps": integer number of steps required to extinguish the tree (if attacked)
+          - "burning_cooldown": integer number of steps to wait before the tree can spread the fire again
+        """
         super().__init__(unique_id, model)
         self.status = "healthy"
         self.health = 10
         self.extinguish_steps = tree_params["extinguish_steps"]
         self.fuel_params = fuel_params
+        self.burning_cooldown = tree_params.get("burning_cooldown", 0)
+        # Initialize the cooldown counter to 0 (ready to spread fire immediately once burning)
+        self.cooldown_counter = 1
 
     def step(self):
         if self.status == "burning":
             self.burn()
 
     def burn(self):
+        # Reduce health as the tree burns.
         self.health -= 1
         if self.health <= 0:
             self.status = "burnt"
-        else:
-            for neighbor in self.model.grid.get_neighbors(self.pos, moore=True, radius=1):
-                if isinstance(neighbor, Tree) and (neighbor.status == "healthy"): #or neighbor.status == "extinguished"):
-                    # Calculate the spread angle from self.pos to neighbor.pos
-                    delta_y = self.pos[1] - neighbor.pos[1]
-                    delta_x = neighbor.pos[0] - self.pos[0]
-                    spread_angle = np.arctan2(delta_y, delta_x)
-                    
-                    # Pass spread_angle into the function
-                    ros = compute_rate_of_spread(
-                        spread_angle=spread_angle,
-                        **self.fuel_params,
-                    )
-                    # Use a normalized probability (this factor may need tuning)
-                    if random.random() < min(ros / 10, 1):
-                        neighbor.status = "burning"
+            return
+
+        # Only attempt to spread fire if the cooldown has expired.
+        if self.cooldown_counter > 0:
+            self.cooldown_counter -= 1
+            return
+
+        # Try to spread fire to healthy neighbors.
+        for neighbor in self.model.grid.get_neighbors(self.pos, moore=True, radius=1):
+            if isinstance(neighbor, Tree) and neighbor.status == "healthy":
+                # Calculate the spread angle from self.pos to neighbor.pos
+                delta_y = self.pos[1] - neighbor.pos[1]
+                delta_x = neighbor.pos[0] - self.pos[0]
+                spread_angle = np.arctan2(delta_y, delta_x)
+                
+                # Compute the rate of spread using the Rothermel model.
+                ros = compute_rate_of_spread(
+                    spread_angle=spread_angle,
+                    **self.fuel_params,
+                )
+                # Use a normalized probability to ignite the neighbor.
+                if random.random() < min(ros / 10, 1):
+                    neighbor.status = "burning"
+        
+        # After spreading fire, reset the cooldown counter.
+        self.cooldown_counter = self.burning_cooldown

@@ -121,7 +121,7 @@ class Firetruck(Agent):
                             # Se utiliza la misma fórmula que en el método burn de Tree
                             # Notar que: spread_angle = arctan2( (y - (y+dy)), ((x+dx) - x) )
                             spread_angle = np.arctan2(-dy, dx)
-                            print("SPREAD ANGLE", spread_angle)
+                            #print("SPREAD ANGLE", spread_angle)
                             # Obtener los parámetros de combustible por defecto del modelo
                             fuel_params = self.model.default_fuel_params
                             ros = compute_rate_of_spread(
@@ -178,13 +178,13 @@ class Firetruck(Agent):
         local_grid = self.get_local_grid(radius=2)
         predicted_grid = self.simulate_fire(local_grid, T_lookahead)
         destination = self.scan_fireline(self.pos, predicted_grid, stage="non_diagonal")
-        print("PRIMERA ETAPA")
+        #print("PRIMERA ETAPA")
         # Si la celda obtenida es diagonal (o no se encontró), se pasa a la ETAPA 2.
         if destination is None:
             T_lookahead = math.sqrt(2) * cell_size / self.production_rate
             predicted_grid = self.simulate_fire(local_grid, T_lookahead)
             destination = self.scan_fireline(self.pos, predicted_grid, stage="diagonal")
-            print("SEGUNDA ETAPA")
+            #print("SEGUNDA ETAPA")
         if destination is not None:
             # Se intenta reservar la celda destino
             if self.model.can_reserve_cell(destination, self):
@@ -251,7 +251,7 @@ class Firetruck(Agent):
         T_lookahead = math.sqrt(2) * cell_size / self.production_rate
         # Se define el radio de la subárea como el número de celdas que equivale a safe_distance
         distance_bound = int(math.ceil(safe_distance / cell_size))
-        print(distance_bound)
+        #print(distance_bound)
         local_grid = self.get_local_grid(radius=distance_bound)
         predicted_grid = self.simulate_fire(local_grid, T_lookahead)
         

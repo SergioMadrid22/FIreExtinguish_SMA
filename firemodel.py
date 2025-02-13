@@ -22,17 +22,30 @@ wind_directions = {
         "South-East": 45,
         "South-West": 315,
         "North-West": 225,
-    }
+}
+
+fuel_types = {
+    #"GR1": {"w0": 0.10, "sigma": 2200, "delta": 1.0},  # Short, sparse grass fuel
+    #"GR2": {"w0": 0.20, "sigma": 2000, "delta": 1.0},  # Low load, dry climate grass
+    "Tall grass": {"w0": 0.138, "sigma": 1500, "delta": 2.5},  # Tall grass fuel
+    "Chaparral": {"w0": 0.230, "sigma": 1850, "delta": 6.0},  # Typical shrub fuel
+    "Litter and understory": {"w0": 0.138, "sigma": 1850, "delta": 1.0},  # Timber–understory fuel
+    #"TL1": {"w0": 1.50, "sigma": 2000, "delta": 0.3},  # Timber litter fuel
+    "Logging slash": {"w0": 0.184, "sigma": 1500, "delta": 2.3}   # Slash/blowdown fuel
+}
+
 
 class FireModel(Model):
     def __init__(self, 
                  width, height,  
-                 num_firetrucks, truck_speed, 
+                 num_firetrucks, truck_speed,
+                 fuel_type,
                  tree_density, extinguish_steps,
                  wind_direction, wind_speed,
                  attack_strategy = "base",
                  cell_size=1, random_seed =42,
-                 *args, **kwargs):
+                 *args, **kwargs
+        ):
         super().__init__(*args, **kwargs)
         self.grid = MultiGrid(width, height, torus=False)
         self.schedule = RandomActivation(self)
@@ -42,6 +55,7 @@ class FireModel(Model):
         self.suppressed_cells = set()
         self.num_firetrucks = num_firetrucks
         self.truck_speed = truck_speed
+        self.fuel_type = fuel_type
         self.tree_density = tree_density
         self.extinguish_steps = extinguish_steps
         self.wind_direction = wind_directions[wind_direction]
@@ -51,7 +65,8 @@ class FireModel(Model):
 
         # Set up the parameters of the fuel
         fuel_params = {
-            "w_0": 0.5, "delta": 0.5, "M_x": 0.3, "sigma": 1500,
+            "w_0": fuel_types[self.fuel_type]["w0"], "delta": fuel_types[self.fuel_type]["delta"], 
+            "M_x": 0.3, "sigma": fuel_types[self.fuel_type]["sigma"],
             "h": 8000, "S_T": 0.0555, "S_e": 0.01,
             "p_p": 32, "M_f": 0.1, "U": wind_speed,
             "U_dir": self.wind_direction, "slope_mag": 0.1, "slope_dir": 0
